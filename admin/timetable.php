@@ -63,6 +63,11 @@ if ($type === 'tvet') {
         }
     }
 }
+
+// Update title based on selected class
+if ($type === 'tvet' && $selected_class !== '' && $selected_class !== 'all' && isset($class_map[$selected_class])) {
+    $title = 'TVET - ' . $class_map[$selected_class];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -150,12 +155,26 @@ if ($type === 'tvet') {
     </div>
     <?php if ($type === 'tvet'): ?>
         <?php
-        // Fetch all module codes and names for the description table
-        $desc_result = $conn->query("SELECT module_code, name FROM modules ORDER BY module_code ASC");
+        // For selected class, show only module codes used in that class's timetable
+        $used_module_ids = [];
+        foreach ($timetable as $day_slots) {
+            foreach ($day_slots as $cell) {
+                if (isset($cell['subject_module_id']) && $cell['subject_module_id']) {
+                    $used_module_ids[$cell['subject_module_id']] = true;
+                }
+            }
+        }
+        $desc_query = "SELECT module_code, name FROM modules";
+        if ($selected_class !== '' && $selected_class !== 'all' && count($used_module_ids) > 0) {
+            $ids = implode(',', array_map('intval', array_keys($used_module_ids)));
+            $desc_query .= " WHERE id IN ($ids)";
+        }
+        $desc_query .= " ORDER BY module_code ASC";
+        $desc_result = $conn->query($desc_query);
         $module_descs = $desc_result ? $desc_result->fetch_all(MYSQLI_ASSOC) : [];
         ?>
         <div class="mt-5">
-            <h4>Module Code Descriptions</h4>
+            <h4>Module Code Descriptions<?php if ($selected_class !== '' && $selected_class !== 'all' && isset($class_map[$selected_class])) echo ' for ' . htmlspecialchars($class_map[$selected_class]); ?></h4>
             <table class="table table-bordered bg-white w-auto">
                 <thead class="table-light">
                     <tr>
