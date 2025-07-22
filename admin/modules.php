@@ -23,13 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $class_ids_str = $class_ids ? implode(',', array_map('intval', $class_ids)) : '';
     if (isset($_POST['add'])) {
         $name = $conn->real_escape_string($_POST['name']);
+        $module_code = $conn->real_escape_string($_POST['module_code']);
         $periods = (int)$_POST['periods'];
-        $conn->query("INSERT INTO modules (name, periods_per_week, preferred_time, teacher_id, class_ids) VALUES ('$name', $periods, '$preferred_time', " . ($teacher_id === 'NULL' ? 'NULL' : (int)$teacher_id) . ", '$class_ids_str')");
+        $conn->query("INSERT INTO modules (name, module_code, periods_per_week, preferred_time, teacher_id, class_ids) VALUES ('$name', '$module_code', $periods, '$preferred_time', " . ($teacher_id === 'NULL' ? 'NULL' : (int)$teacher_id) . ", '$class_ids_str')");
     } elseif (isset($_POST['edit'])) {
         $id = (int)$_POST['id'];
         $name = $conn->real_escape_string($_POST['name']);
+        $module_code = $conn->real_escape_string($_POST['module_code']);
         $periods = (int)$_POST['periods'];
-        $conn->query("UPDATE modules SET name='$name', periods_per_week=$periods, preferred_time='$preferred_time', teacher_id=" . ($teacher_id === 'NULL' ? 'NULL' : (int)$teacher_id) . ", class_ids='$class_ids_str' WHERE id=$id");
+        $conn->query("UPDATE modules SET name='$name', module_code='$module_code', periods_per_week=$periods, preferred_time='$preferred_time', teacher_id=" . ($teacher_id === 'NULL' ? 'NULL' : (int)$teacher_id) . ", class_ids='$class_ids_str' WHERE id=$id");
     } elseif (isset($_POST['delete'])) {
         $id = (int)$_POST['id'];
         $conn->query("DELETE FROM modules WHERE id=$id");
@@ -67,6 +69,7 @@ $modules = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
                 <tr>
                     <th>#</th>
                     <th>Module Name</th>
+                    <th>Module Code</th>
                     <th>Periods/Week</th>
                     <th>Preferred Time</th>
                     <th>Teacher</th>
@@ -79,6 +82,7 @@ $modules = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
                 <tr>
                     <td><?= $i+1 ?></td>
                     <td><?= htmlspecialchars($module['name']) ?></td>
+                    <td><?= htmlspecialchars($module['module_code']) ?></td>
                     <td><?= $module['periods_per_week'] ?></td>
                     <td><?= htmlspecialchars($module['preferred_time'] ?? 'Any') ?></td>
                     <td>
@@ -131,6 +135,10 @@ $modules = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
                           <div class="mb-3">
                             <label class="form-label">Module Name</label>
                             <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($module['name']) ?>" required>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label">Module Code</label>
+                            <input type="text" name="module_code" class="form-control" value="<?= htmlspecialchars($module['module_code']) ?>" required>
                           </div>
                           <div class="mb-3">
                             <label class="form-label">Periods per Week</label>
@@ -189,6 +197,10 @@ $modules = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
               <div class="mb-3">
                 <label class="form-label">Module Name</label>
                 <input type="text" name="name" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Module Code</label>
+                <input type="text" name="module_code" class="form-control" required>
               </div>
               <div class="mb-3">
                 <label class="form-label">Periods per Week</label>

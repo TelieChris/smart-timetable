@@ -49,8 +49,19 @@ $result = $conn->query($query);
 while ($row = $result->fetch_assoc()) {
     $timetable[$row['day']][$row['hour']] = [
         'name' => $row['subject_module_name'],
-        'class_id' => $row['class_id'] ?? null
+        'class_id' => $row['class_id'] ?? null,
+        'subject_module_id' => $row['subject_module_id'] ?? null
     ];
+}
+// Fetch module codes if TVET
+$module_codes = [];
+if ($type === 'tvet') {
+    $mod_result = $conn->query("SELECT id, module_code FROM modules");
+    if ($mod_result) {
+        while ($mod = $mod_result->fetch_assoc()) {
+            $module_codes[$mod['id']] = $mod['module_code'];
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -117,7 +128,7 @@ while ($row = $result->fetch_assoc()) {
                             <?php foreach ($days as $day): ?>
                                 <td>
                                     <?php if (isset($timetable[$day][$h])): ?>
-                                        <?= htmlspecialchars($timetable[$day][$h]['name']) ?><br>
+                                        <?= $type === 'tvet' && isset($timetable[$day][$h]['subject_module_id']) && isset($module_codes[$timetable[$day][$h]['subject_module_id']]) ? htmlspecialchars($module_codes[$timetable[$day][$h]['subject_module_id']]) . ' - ' : '' ?><?= htmlspecialchars($timetable[$day][$h]['name']) ?><br>
                                         <?php if (!empty($timetable[$day][$h]['class_id']) && isset($class_map[$timetable[$day][$h]['class_id']]) && ($selected_class === '' || $selected_class === 'all')): ?>
                                             <span class="class-label">Class: <?= htmlspecialchars($class_map[$timetable[$day][$h]['class_id']]) ?></span>
                                         <?php endif; ?>
