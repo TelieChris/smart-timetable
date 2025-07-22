@@ -128,7 +128,11 @@ if ($type === 'tvet') {
                             <?php foreach ($days as $day): ?>
                                 <td>
                                     <?php if (isset($timetable[$day][$h])): ?>
-                                        <?= $type === 'tvet' && isset($timetable[$day][$h]['subject_module_id']) && isset($module_codes[$timetable[$day][$h]['subject_module_id']]) ? htmlspecialchars($module_codes[$timetable[$day][$h]['subject_module_id']]) . ' - ' : '' ?><?= htmlspecialchars($timetable[$day][$h]['name']) ?><br>
+                                        <?php if ($type === 'tvet' && isset($timetable[$day][$h]['subject_module_id']) && isset($module_codes[$timetable[$day][$h]['subject_module_id']])): ?>
+                                            <?= htmlspecialchars($module_codes[$timetable[$day][$h]['subject_module_id']]) ?>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($timetable[$day][$h]['name']) ?><br>
+                                        <?php endif; ?>
                                         <?php if (!empty($timetable[$day][$h]['class_id']) && isset($class_map[$timetable[$day][$h]['class_id']]) && ($selected_class === '' || $selected_class === 'all')): ?>
                                             <span class="class-label">Class: <?= htmlspecialchars($class_map[$timetable[$day][$h]['class_id']]) ?></span>
                                         <?php endif; ?>
@@ -144,6 +148,32 @@ if ($type === 'tvet') {
         </div>
         <a href="generate.php?type=<?php echo $type; ?>&start_time=<?php echo urlencode($start_time); ?>" class="btn btn-secondary mt-3">Regenerate Timetable</a>
     </div>
+    <?php if ($type === 'tvet'): ?>
+        <?php
+        // Fetch all module codes and names for the description table
+        $desc_result = $conn->query("SELECT module_code, name FROM modules ORDER BY module_code ASC");
+        $module_descs = $desc_result ? $desc_result->fetch_all(MYSQLI_ASSOC) : [];
+        ?>
+        <div class="mt-5">
+            <h4>Module Code Descriptions</h4>
+            <table class="table table-bordered bg-white w-auto">
+                <thead class="table-light">
+                    <tr>
+                        <th>Module Code</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($module_descs as $desc): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($desc['module_code']) ?></td>
+                            <td><?= htmlspecialchars($desc['name']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
