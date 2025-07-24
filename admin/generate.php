@@ -34,21 +34,60 @@ for ($h = 1; $h <= $hours_per_day; $h++) {
     if ($h == $lunch_after) $time = add_minutes($time, 40); // lunch
 }
 
+// Filter out modules with 0 periods per week
 $periods_per_week = [];
 foreach ($items as $item) {
-    $periods_per_week[] = [
-        'id' => $item['id'],
-        'name' => $item['name'],
-        'periods' => $item['periods_per_week'],
-        'preferred_time' => $item['preferred_time'] ?? 'Any',
-        'teacher_id' => $item['teacher_id'] ?? null,
-        'class_ids' => $item['class_ids'] ?? '', // ensure this is included for both subjects and modules
-    ];
+    if ((int)($item['periods_per_week'] ?? $item['periods']) > 0) {
+        $periods_per_week[] = [
+            'id' => $item['id'],
+            'name' => $item['name'],
+            'periods' => $item['periods_per_week'],
+            'preferred_time' => $item['preferred_time'] ?? 'Any',
+            'teacher_id' => $item['teacher_id'] ?? null,
+            'class_ids' => $item['class_ids'] ?? '',
+        ];
+    }
 }
 
 $generated = false;
 // Global teacher schedule to prevent double-booking across all classes
 $global_teacher_schedule = [];
+// If generating TVET, preload O-Level teacher assignments into global_teacher_schedule
+if ($type === 'tvet') {
+    $olevel_result = $conn->query("SELECT day, hour, subject_module_id, class_id FROM timetable WHERE type='olevel'");
+    if ($olevel_result) {
+        while ($row = $olevel_result->fetch_assoc()) {
+            // Get teacher_id for this subject
+            $subj_id = $row['subject_module_id'];
+            $teacher_id = null;
+            $subj = $conn->query("SELECT teacher_id FROM subjects WHERE id=" . intval($subj_id));
+            if ($subj && $subj_row = $subj->fetch_assoc()) {
+                $teacher_id = $subj_row['teacher_id'];
+            }
+            if ($teacher_id) {
+                $global_teacher_schedule[$row['day']][$row['hour']][$teacher_id] = true;
+            }
+        }
+    }
+}
+// If generating O-Level, preload TVET teacher assignments into global_teacher_schedule
+if ($type === 'olevel') {
+    $tvet_result = $conn->query("SELECT day, hour, subject_module_id, class_id FROM timetable WHERE type='tvet'");
+    if ($tvet_result) {
+        while ($row = $tvet_result->fetch_assoc()) {
+            // Get teacher_id for this module
+            $mod_id = $row['subject_module_id'];
+            $teacher_id = null;
+            $mod = $conn->query("SELECT teacher_id FROM modules WHERE id=" . intval($mod_id));
+            if ($mod && $mod_row = $mod->fetch_assoc()) {
+                $teacher_id = $mod_row['teacher_id'];
+            }
+            if ($teacher_id) {
+                $global_teacher_schedule[$row['day']][$row['hour']][$teacher_id] = true;
+            }
+        }
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate']) && count($periods_per_week) > 0) {
     // Clear previous timetable for this type
@@ -142,6 +181,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate']) && count(
                         }
                         unset($pool[$k]);
                         break;
+                    }
+                }
+            }
+            // Improved: Repeatedly fill one of any three consecutive free hours as long as possible
+            $changed = true;
+            while ($changed && !empty($pool)) {
+                $changed = false;
+                for ($h = 1; $h <= $hours_per_day - 2; $h++) {
+                    if (empty($slots[$day][$h]) && empty($slots[$day][$h+1]) && empty($slots[$day][$h+2])) {
+                        // Try to fill the middle slot first
+                        $target_h = $h+1;
+                        foreach ($pool as $k => $item) {
+                            $tid = $item['teacher_id'];
+                            if (!$slots[$day][$target_h] && (!($tid && (isset($teacher_schedule[$day][$target_h][$tid]) || isset($global_teacher_schedule[$day][$target_h][$tid]))))) {
+                                $slots[$day][$target_h] = $item;
+                                if ($tid) {
+                                    $teacher_schedule[$day][$target_h][$tid] = true;
+                                    $global_teacher_schedule[$day][$target_h][$tid] = true;
+                                }
+                                unset($pool[$k]);
+                                $changed = true;
+                                break 2;
+                            }
+                        }
                     }
                 }
             }

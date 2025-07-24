@@ -39,8 +39,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Fetch all subjects
-$result = $conn->query("SELECT * FROM subjects ORDER BY id DESC");
+// Handle filters
+$filter_name = $_GET['filter_name'] ?? '';
+$filter_teacher = $_GET['filter_teacher'] ?? '';
+$filter_classes = $_GET['filter_classes'] ?? '';
+
+// Build filter query
+$where = [];
+if ($filter_name !== '') {
+    $where[] = "name LIKE '%" . $conn->real_escape_string($filter_name) . "%'";
+}
+if ($filter_teacher !== '' && $filter_teacher !== 'all') {
+    $where[] = "teacher_id = " . intval($filter_teacher);
+}
+if ($filter_classes !== '' && $filter_classes !== 'all') {
+    $cid = intval($filter_classes);
+    $where[] = "FIND_IN_SET($cid, class_ids)";
+}
+$where_sql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+// Fetch filtered subjects
+$result = $conn->query("SELECT * FROM subjects $where_sql ORDER BY id DESC");
 $subjects = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 ?>
 <!DOCTYPE html>
@@ -63,6 +82,35 @@ $subjects = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
             <h2>O-Level Subjects</h2>
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addModal">Add Subject</button>
         </div>
+        <!-- Filter Form -->
+        <form method="get" class="row g-3 mb-4 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Subject Name</label>
+                <input type="text" name="filter_name" class="form-control" value="<?= htmlspecialchars($filter_name) ?>">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Teacher</label>
+                <select name="filter_teacher" class="form-select">
+                    <option value="all">All</option>
+                    <?php foreach ($all_teachers as $t): ?>
+                        <option value="<?= $t['id'] ?>" <?= ($filter_teacher == $t['id']) ? 'selected' : '' ?>><?= htmlspecialchars($t['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Classes</label>
+                <select name="filter_classes" class="form-select">
+                    <option value="all">All</option>
+                    <?php foreach ($all_classes as $c): ?>
+                        <option value="<?= $c['id'] ?>" <?= ($filter_classes == $c['id']) ? 'selected' : '' ?>><?= htmlspecialchars($c['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+        <!-- End Filter Form -->
         <table class="table table-bordered table-hover bg-white">
             <thead class="table-light">
                 <tr>
